@@ -23,7 +23,8 @@ app.use(cors());
 
 // Middleware
 const authenticateToken = (req: any, res: any, next: any) => {
-  const token = req.headers["authorization"];
+  let token = req.headers["authorization"];
+  token = token.replace("Bearer ", "");
 
   if (token == null) return res.sendStatus(401);
   jwt.verify(token, process.env.SECRET_ACCESS_TOKEN, (err: any, user: any) => {
@@ -74,6 +75,19 @@ app.get("/posts/:slug", authenticateToken, async (req, res, next) => {
   }
 });
 
+app.get("/tags", authenticateToken, async (req: any, res: any, next) => {
+  try {
+    const tags = await prisma.tag.findMany({
+      where: {
+        userId: req.user.id,
+      },
+    });
+    res.json(tags);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/users", async (req, res, next) => {
   try {
     const user = await prisma.user.create({
@@ -87,7 +101,6 @@ app.post("/users", async (req, res, next) => {
 
 app.post("/posts", async (req, res, next) => {
   try {
-    const data = req.body;
     const post = await prisma.post.create({
       data: req.body,
     });
@@ -99,9 +112,26 @@ app.post("/posts", async (req, res, next) => {
 
 app.post("/login", async (req, res, next) => {
   try {
-    const username = req.body.username;
-    const user = { name: username };
-    const accessToken = jwt.sign(user, process.env.SECRET_ACCESS_TOKEN);
+    const name = req.body.name;
+    if (typeof name !== "string") {
+      res.status(400).send(`Please provide a "name" filed!`);
+      return;
+    }
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        name,
+      },
+    });
+
+    if (!existingUser) {
+      res.status(404).send(`No such user found!`);
+      return;
+    }
+
+    const accessToken = jwt.sign(
+      { id: existingUser.id },
+      process.env.SECRET_ACCESS_TOKEN
+    );
     res.json({ accessToken });
   } catch (error) {
     next(error);

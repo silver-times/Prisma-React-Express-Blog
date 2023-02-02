@@ -12,16 +12,35 @@ datasource db {
 
 model User {
   id    Int    @id @default(autoincrement())
-  name  String
+  name  String @unique
   posts Post[]
+  tags  Tag[]
 }
 
 model Post {
-  id        Int     @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   title     String
   content   String
-  slug      String  
-  published Boolean @default(false)
-  user      User    @relation(fields: [userId], references: [id])
-  userId    Int     @default(1)
+  slug      String
+  published Boolean     @default(false)
+  user      User        @relation(fields: [userId], references: [id])
+  userId    Int
+  tags      TagToPost[]
+}
+
+model Tag {
+  id     Int         @id @default(autoincrement())
+  user   User        @relation(fields: [userId], references: [id])
+  userId Int
+  title  String
+  posts  TagToPost[]
+}
+
+model TagToPost {
+  tagId  Int
+  tag    Tag  @relation(fields: [tagId], references: [id])
+  postId Int
+  post   Post @relation(fields: [postId], references: [id])
+
+  @@id([tagId, postId])
 }
